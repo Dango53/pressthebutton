@@ -5,220 +5,168 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>絶対に押せないボタン</title>
     <style>
-        * { touch-action: manipulation; box-sizing: border-box; }
-        body { margin: 0; background-color: #131313; color: #fff; font-family: sans-serif; overflow: hidden; height: 100vh; position: relative; }
+        * { touch-action: none; user-select: none; box-sizing: border-box; }
+        body { margin: 0; background: #131313; color: #fff; font-family: sans-serif; overflow: hidden; height: 100vh; }
 
-        .screen { display: none; text-align: center; width: 100%; height: 100%; position: absolute; top: 0; left: 0; justify-content: center; align-items: center; flex-direction: column; padding: 20px; }
+        /* スクリーン管理 */
+        .screen { display: none; width: 100%; height: 100%; position: absolute; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
         .active { display: flex; }
 
-        h1 { font-size: 5rem; color: #ff3949; text-shadow: 0 0 20px #ff2949; margin-bottom: 50px; }
-        p { font-size: 1.7rem; margin-bottom: 20px; color: #ccc; }
+        /* メニュー画面 */
+        h1 { font-size: 4rem; color: #ff3939; text-shadow: 0 0 20px rgba(255, 11, 11, 0.519); margin-bottom: 40px; }
+        .btn { padding: 20px 40px; font-size: 1.5rem; font-weight: bold; border-radius: 50px; border: none; cursor: pointer; z-index: 1000; }
+        .start-btn { background: #10b981; color: white; box-shadow: 0 10px 0 #065f46; transition: 0.1s; }
+        .start-btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #065f46; }
 
-        .btn { padding: 20px 40px; font-size: 1.5rem; font-weight: bold; border-radius: 50px; border: none; cursor: pointer; transition: background 0.2s; }
-        .start-btn { background: #38bdf8; color: #000; box-shadow: 0 0 15px rgba(56, 189, 248, 0.7); }
+        /* ゲーム画面 */
+        #target-btn { position: absolute; background: #ef4444; color: white; padding: 15px 30px; border-radius: 8px; border: none; font-weight: bold; transition: 0.05s linear; }
+        #game-msg { position: fixed; top: 20px; font-size: 1.2rem; color: #444; pointer-events: none; }
 
-        /* ターゲットボタン（逃げるやつ） */
-        #target-btn {
-            background: #ef4444; color: white; position: absolute; z-index: 100;
-            transition: transform 0.1s ease-out, left 0.1s ease-out, top 0.1s ease-out;
-            box-shadow: 0 0 25px rgba(239, 68, 68, 0.8);
+        /* 妨害：Geometry Dash モード */
+        .gd-obstacle { position: absolute; background: #ffea00; border: 3px solid #000; z-index: 500; pointer-events: auto; }
+
+        /* 妨害：VS Code モード (偽画面) */
+        #vscode-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1e1e1e;
+            display: none; z-index: 2000; font-family: 'Consolas', monospace; padding: 20px; text-align: left; overflow: hidden;
         }
+        .code-line { color: #d4d4d4; font-size: 12px; margin-bottom: 2px; }
+        .error-text { color: #f44747; font-weight: bold; animation: blink 0.5s infinite; }
 
-        /* 偽通知 */
-        .popup { position: fixed; top: -100px; left: 5%; width: 90%; background: rgba(255,255,255,0.95); color: #000; padding: 15px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.6); z-index: 1000; font-weight: bold; transition: top 0.3s ease-out; }
+        /* ホラー演出 */
+        #jumpscare {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 5000; display: none; align-items: center; justify-content: center;
+        }
+        #scary-face { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(2); }
 
-        /* 妨害オーバーレイ：壊れた画面 */
-        #broken-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJjcmFjayIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgd2lkdGg9IjIwMCIgaGVpZHRoPSIyMDAiPjxwYXRoIGQ9Ik0wLDEwMCBMMjAwLDEwMCBNMTAwLDAgTDEwMCwyMDAgTTUwLDUwIEwxNTAsMTUwIE0xNTAsNTAgTDUwLDE1MCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjAuNSIgb3BhY2l0eT0iMC41Ii8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZHRoPSIxMDAlIiBmaWxsPSJ1cmwoI2NyYWNrKSIvPjwvc3ZnPg=='); display: none; z-index: 900; pointer-events: none; }
-
-        /* 分身ボタン */
-        .clone-btn { position: absolute; background: rgba(239, 68, 68, 0.3); color: rgba(255,255,255,0.5); border: none; padding: 15px 30px; border-radius: 50px; z-index: 50; pointer-events: auto; }
-
-        /* 心理的妨害：フェイク再起動画面 */
-        #reboot-screen { background: #000; z-index: 2000; color: #fff; font-family: monospace; text-align: left; align-items: flex-start; padding: 50px; }
-        .progress-bar { width: 0%; height: 20px; background: #0f0; margin-top: 20px; transition: width 0.5s; }
-
-        /* 画面全体の回転・明滅 */
-        body.rotate-all { animation: rotateBody 2s infinite linear; }
-        body.flash-all { animation: flashBody 0.2s infinite; }
-
-        @keyframes rotateBody { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes flashBody { 0%, 100% { background: #000; } 50% { background: #330000; } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes shake { 0% { left: 0; } 25% { left: 5px; } 50% { left: -5px; } 75% { left: 5px; } 100% { left: 0; } }
+        .shake { animation: shake 0.1s infinite; }
     </style>
 </head>
 <body>
 
-    <div id="popup" class="popup">📱 友達からのメッセージ<br>「何してるの？ｗ」</div>
-    <div id="broken-screen"></div>
-    <div id="clone-container"></div>
-
     <div id="menu-screen" class="screen active">
-        <h1>絶対に押せない<br>ボタン</h1>
-        <p>※心臓の弱い方はご遠慮ください</p>
+        <h1>絶対に押せないボタン</h1>
         <button class="btn start-btn" onclick="startGame()">スタート</button>
     </div>
 
     <div id="game-screen" class="screen">
-        <p id="msg">ボタンを1回タップできればクリア</p>
-        <button id="target-btn" class="btn">押して！</button>
+        <div id="game-msg">ボタンを押せ</div>
+        <button id="target-btn">ボタン</button>
     </div>
 
-    <div id="reboot-screen" class="screen">
-        <pre>
-SYSTEM REBOOTING...
-------------------
-Initializing Kernel... OK
-Loading Modules... OK
-Checking Storage... [####      ] 40%
-WARNING: Corrupted data detected.
-Attempting Repair...
-------------------
-DO NOT POWER OFF.
-        </pre>
-        <div class="progress-bar" id="progress"></div>
+    <div id="vscode-overlay">
+        <div class="code-line"><span style="color:#569cd6">import</span> os, sys</div>
+        <div class="code-line"><span style="color:#ce9178">"CRITICAL ERROR: Memory Corruption detected"</span></div>
+        <div class="code-line"><span style="color:#6a9955">// Recovering user data... [FAILED]</span></div>
+        <div class="code-line" style="margin-top:20px">Deleting <span style="color:#dcdcaa">C:/Users/Admin/Photos...</span></div>
+        <div class="code-line">Deleting <span style="color:#dcdcaa">C:/Users/Admin/Documents...</span></div>
+        <div class="error-text" style="font-size: 20px; margin-top: 40px;">ERROR: FAILED TO STOP DELETION</div>
+    </div>
+
+    <div id="jumpscare">
+        <div style="width:200px; height:200px; background:radial-gradient(circle, #f00 0%, #000 70%); border-radius:50%; box-shadow: 0 0 100px #f00;"></div>
     </div>
 
     <script>
-        const screens = { menu: 'menu-screen', game: 'game-screen', reboot: 'reboot-screen' };
-        const els = {
-            body: document.body, game: document.getElementById('game-screen'), btn: document.getElementById('target-btn'),
-            msg: document.getElementById('msg'), popup: document.getElementById('popup'), broken: document.getElementById('broken-screen'),
-            clones: document.getElementById('clone-container'), progress: document.getElementById('progress')
-        };
-        const sounds = { error: new Audio('error.mp3'), laugh: new Audio('laugh.mp3') };
+        let clickCount = 0;
+        const target = document.getElementById('target-btn');
+        const vscode = document.getElementById('vscode-overlay');
+        const jumpscare = document.getElementById('jumpscare');
 
-        let currentStage = 1;
-        let missCount = 0;
-        let isFakeRebooting = false;
-
-        function showScreen(screenId) {
-            Object.values(screens).forEach(id => document.getElementById(id).classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
+        function moveButton() {
+            const x = Math.random() * (window.innerWidth - target.clientWidth - 40) + 20;
+            const y = Math.random() * (window.innerHeight - target.clientHeight - 40) + 20;
+            target.style.left = `${x}px`;
+            target.style.top = `${y}px`;
         }
 
         function startGame() {
-            showScreen(screens.game);
+            document.getElementById('menu-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
             moveButton();
-            // 音声再生のトリガー（スマホはユーザー操作が必要）
-            sounds.error.load(); sounds.laugh.load();
         }
 
-        function moveButton() {
-            if (isFakeRebooting) return;
-            // 画面の端に行き過ぎないように調整
-            const padding = 60;
-            const x = Math.random() * (window.innerWidth - els.btn.clientWidth - padding) + padding/2;
-            const y = Math.random() * (window.innerHeight - els.btn.clientHeight - padding) + padding/2;
-            els.btn.style.left = `${x}px`; els.btn.style.top = `${y}px`;
-        }
-
-        function playSound(sound) { sound.currentTime = 0; sound.play().catch(()=>{}); }
-        function vibrate(pat = 50) { if (navigator.vibrate) navigator.vibrate(pat); }
-
-        function showPopup(text, time = 2000) {
-            els.popup.innerHTML = text; els.popup.style.top = '20px';
-            setTimeout(() => { els.popup.style.top = '-100px'; }, time);
-        }
-
-        // スマホ用のタッチイベント
-        els.btn.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // クリック判定をキャンセルして先に逃げる
-            if (isFakeRebooting) return;
-            missCount++;
-            
-            vibrate(80);
-            moveButton();
-            applyGimmicks();
+        // 逃げる処理
+        target.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            // 90%の確率で逃げる、10%でタップ成功
+            if (Math.random() > 0.1) {
+                moveButton();
+                vibrate(30);
+                checkGimmicks();
+            } else {
+                onSuccess();
+            }
         });
 
-        // 妨害ロジック
-        function applyGimmicks() {
-            // ステージ1: メッセージ煽り (1-3回)
-            if (missCount === 1) els.msg.innerText = "あれ？遅いね？";
-            if (missCount === 3) { els.msg.innerText = "本気？"; showPopup("📱 バッテリー残量 5%"); }
-
-            // ステージ2: 偽通知と振動 (4-7回)
-            if (missCount === 4) {
-                currentStage = 2; els.msg.innerText = "邪魔が入るぞ〜ｗ";
-                playSound(sounds.error);
-                vibrate([100, 50, 100]);
-            }
-            if (missCount === 6) showPopup("⚠️ システム警告：不明なエラー", 3000);
-
-            // ステージ3: 視覚妨害 - 画面回転と明滅 (8-11回)
-            if (missCount === 8) {
-                currentStage = 3; els.msg.innerText = "目が回るね！";
-                els.body.classList.add('rotate-all');
-            }
-            if (missCount === 10) { els.body.classList.add('flash-all'); showPopup("📱 友達からのメッセージ<br>「まだやってんの？ウケるｗ」"); }
-
-            // ステージ4: 壊れた画面と音、分身ボタン (12-15回)
-            if (missCount === 12) {
-                currentStage = 4; els.msg.innerText = "どれが本物かな？";
-                els.body.classList.remove('rotate-all', 'flash-all');
-                els.broken.style.display = 'block';
-                playSound(sounds.laugh);
-                createClones();
-            }
-            if (missCount === 14) showPopup("⚠️ ファイルの破損が深刻です", 3000);
-
-            // ステージ5: 心理戦 - 偽再起動 (16回目)
-            if (missCount === 16) {
-                startFakeReboot();
-            }
+        function onSuccess() {
+            clickCount++;
+            moveButton();
+            vibrate([50, 30, 50]);
+            checkGimmicks();
+            if (clickCount >= 80) win();
         }
 
-        // 分身ボタンを作成
-        function createClones() {
-            els.clones.innerHTML = '';
-            for (let i = 0; i < 8; i++) {
-                const clone = document.createElement('button');
-                clone.innerText = "押して！";
-                clone.className = 'btn clone-btn';
-                els.clones.appendChild(clone);
-                moveClone(clone);
-                clone.addEventListener('touchstart', (e) => {
-                    e.preventDefault(); playSound(sounds.error); moveClone(clone);
-                });
+        function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
+
+        function checkGimmicks() {
+            // 20回〜: Geometry Dash風の流れるトゲ
+            if (clickCount >= 10 && clickCount < 30) {
+                if (Math.random() > 0.7) spawnGDObstacle();
             }
-        }
 
-        function moveClone(clone) {
-            const padding = 50;
-            clone.style.left = `${Math.random() * (window.innerWidth - padding * 2) + padding}px`;
-            clone.style.top = `${Math.random() * (window.innerHeight - padding * 2) + padding}px`;
-        }
+            // 40回〜: 突然のVS Code画面（5秒間）
+            if (clickCount === 40) {
+                vscode.style.display = 'block';
+                vibrate([500, 100, 500]);
+                setTimeout(() => { vscode.style.display = 'none'; }, 4000);
+            }
 
-        // フェイク再起動
-        function startFakeReboot() {
-            isFakeRebooting = true;
-            showScreen(screens.reboot);
-            els.btn.style.display = 'none';
-            els.clones.innerHTML = '';
-            els.broken.style.display = 'none';
-            
-            let prog = 0;
-            const timer = setInterval(() => {
-                prog += Math.random() * 15;
-                if (prog > 100) prog = 100;
-                els.progress.style.width = `${prog}%`;
-                vibrate(20);
-                
-                if (prog === 100) {
-                    clearInterval(timer);
-                    setTimeout(() => {
-                        alert("...というのは嘘です。");
-                        location.reload(); // 最初から
-                    }, 1000);
+            // 60回〜: ホラー演出（急な画像と画面の揺れ）
+            if (clickCount >= 60) {
+                document.body.classList.add('shake');
+                if (Math.random() > 0.92) {
+                    jumpscare.style.display = 'flex';
+                    setTimeout(() => { jumpscare.style.display = 'none'; }, 150);
                 }
-            }, 500);
+            }
         }
 
-        // 万が一触れた時
-        els.btn.addEventListener('click', () => {
-            if (isFakeRebooting) return;
-            alert("おめでとう！君の指は光速を超えた！");
+        function spawnGDObstacle() {
+            const obs = document.createElement('div');
+            obs.className = 'gd-obstacle';
+            obs.style.width = '40px';
+            obs.style.height = '40px';
+            obs.style.left = window.innerWidth + 'px';
+            obs.style.top = Math.random() * window.innerHeight + 'px';
+            document.getElementById('game-screen').appendChild(obs);
+
+            // 右から左へ高速移動（GDのスクロール風）
+            let pos = window.innerWidth;
+            const anim = setInterval(() => {
+                pos -= 10;
+                obs.style.left = pos + 'px';
+                if (pos < -50) {
+                    clearInterval(anim);
+                    obs.remove();
+                }
+            }, 16);
+
+            // 障害物に触れるとペナルティ
+            obs.addEventListener('touchstart', () => {
+                clickCount = Math.max(0, clickCount - 10);
+                vibrate(500);
+                obs.style.background = 'red';
+            });
+        }
+
+        function win() {
+            alert("おめでとう、君はボタンを押せた！");
             location.reload();
-        });
+        }
     </script>
 </body>
 </html>
