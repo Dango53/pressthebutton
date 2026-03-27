@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>【警告】絶対に押してはいけない</title>
+    <style>
+        * { touch-action: manipulation; } /* ダブルタップズームを防止 */
+        body {
+            margin: 0;
+            background-color: #000;
+            color: #0f0; /* ハッカー風の緑 */
+            font-family: sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .screen { display: none; text-align: center; width: 90%; }
+        .active { display: flex; flex-direction: column; }
+
+        h1 { font-size: 1.5rem; margin-bottom: 2rem; }
+
+        .btn {
+            padding: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 15px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .start-btn { background: #0f0; color: #000; }
+
+        /* 逃げるボタン */
+        #target-btn {
+            background: #ff4757;
+            color: white;
+            position: absolute;
+            z-index: 100;
+            transition: 0.1s ease-out;
+            box-shadow: 0 0 20px rgba(255, 71, 87, 0.6);
+        }
+
+        /* 偽の通知ポップアップ */
+        .popup {
+            position: fixed;
+            top: 20px;
+            left: 5%;
+            width: 90%;
+            background: rgba(255, 255, 255, 0.9);
+            color: #000;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 1000;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="popup" class="popup">⚠️ システム警告：不明なエラーが発生しました</div>
+
+    <div id="menu-screen" class="screen active">
+        <h1>⚠️ 警告 ⚠️<br>このボタンは絶対に押さないでください</h1>
+        <button class="btn start-btn" onclick="startGame()">理解した上で進む</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <p id="msg">ボタンを1回タップできればクリア</p>
+        <button id="target-btn" class="btn">押せるかな？</button>
+    </div>
+
+    <script>
+        const menu = document.getElementById('menu-screen');
+        const game = document.getElementById('game-screen');
+        const btn = document.getElementById('target-btn');
+        const popup = document.getElementById('popup');
+        const msg = document.getElementById('msg');
+
+        let count = 0;
+
+        function startGame() {
+            menu.classList.remove('active');
+            game.classList.add('active');
+            moveButton();
+        }
+
+        function moveButton() {
+            // 画面の端に行き過ぎないように調整
+            const padding = 50;
+            const x = Math.random() * (window.innerWidth - btn.clientWidth - padding);
+            const y = Math.random() * (window.innerHeight - btn.clientHeight - padding);
+            
+            btn.style.left = `${x}px`;
+            btn.style.top = `${y}px`;
+        }
+
+        // スマホ用のタッチイベント
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // クリック判定をキャンセルして先に逃げる
+            count++;
+            
+            // 1. 逃げる
+            moveButton();
+
+            // 2. スマホを振動させる（Android限定、iPhoneは非対応が多い）
+            if (navigator.vibrate) {
+                navigator.vibrate(50); 
+            }
+
+            // 3. ギミック発動
+            if (count === 3) msg.innerText = "おっと、手が滑ったかな？";
+            if (count === 7) {
+                showPopup("📱 ストレージの消去を開始します...");
+            }
+            if (count === 12) {
+                document.body.style.backgroundColor = "red";
+                setTimeout(() => document.body.style.backgroundColor = "#000", 100);
+                showPopup("⚠️ バッテリー温度が上昇しています！");
+            }
+        });
+
+        function showPopup(text) {
+            popup.innerText = text;
+            popup.style.display = 'block';
+            setTimeout(() => { popup.style.display = 'none'; }, 2000);
+        }
+
+        // 万が一触れた時
+        btn.addEventListener('click', () => {
+            alert("おめでとう！君の指は光速を超えた！");
+            location.reload();
+        });
+    </script>
+</body>
+</html>
