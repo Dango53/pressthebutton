@@ -5,168 +5,1438 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>絶対に押せないボタン</title>
     <style>
-        * { touch-action: none; user-select: none; box-sizing: border-box; }
-        body { margin: 0; background: #131313; color: #fff; font-family: sans-serif; overflow: hidden; height: 100vh; }
+        * { touch-action: none; user-select: none; box-sizing: border-box; cursor: default; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
 
-        /* スクリーン管理 */
-        .screen { display: none; width: 100%; height: 100%; position: absolute; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
-        .active { display: flex; }
+        /* --- メインゲーム画面 --- */
+        #game-view { width: 100%; height: 100%; position: absolute; transition: transform 0.3s, filter 0.2s; background: linear-gradient(45deg, #1a1a2e, #16213e, #0f3460); }
+        #hint-text { position: fixed; top: 20%; width: 100%; text-align: center; font-size: 4rem; font-weight: 900; color: rgba(255, 255, 255, 0.05); pointer-events: none; z-index: 1; }
+        #target-btn { position: absolute; padding: 20px 40px; background: #ff0000; color: #fff; border: none; border-radius: 12px; font-weight: bold; font-size: 1.2rem; z-index: 100; box-shadow: 0 0 20px #f00; }
 
-        /* メニュー画面 */
-        h1 { font-size: 4rem; color: #ff3939; text-shadow: 0 0 20px rgba(255, 11, 11, 0.519); margin-bottom: 40px; }
-        .btn { padding: 20px 40px; font-size: 1.5rem; font-weight: bold; border-radius: 50px; border: none; cursor: pointer; z-index: 1000; }
-        .start-btn { background: #10b981; color: white; box-shadow: 0 10px 0 #065f46; transition: 0.1s; }
-        .start-btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #065f46; }
+        /* --- エフェクト --- */
+        .effect-invert { filter: invert(100%) hue-rotate(180deg); }
+        .effect-rotate { transform: rotate(180deg); }
+        .effect-glitch { animation: glitch 0.1s infinite; }
+        @keyframes glitch { 0% { transform: translate(0); } 50% { transform: translate(-10px, 5px) skewX(10deg); } 100% { transform: translate(10px, -5px); } }
 
-        /* ゲーム画面 */
-        #target-btn { position: absolute; background: #ef4444; color: white; padding: 15px 30px; border-radius: 8px; border: none; font-weight: bold; transition: 0.05s linear; }
-        #game-msg { position: fixed; top: 20px; font-size: 1.2rem; color: #444; pointer-events: none; }
+        /* --- 広告 --- */
+        #ad-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 30000; display: none; flex-direction: column; align-items: center; justify-content: center; color: #000; }
+        .ad-box { width: 80%; border: 4px solid #000; padding: 20px; text-align: center; margin-bottom: 20px; background: #f9f9f9; }
+        #skip-btn { position: relative; padding: 15px 30px; font-weight: bold; cursor: pointer; background: #ddd; border: 1px solid #999; }
 
-        /* 妨害：Geometry Dash モード */
-        .gd-obstacle { position: absolute; background: #ffea00; border: 3px solid #000; z-index: 500; pointer-events: auto; }
+        /* --- マリオ --- */
+        #mario-world { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #5c94fc; z-index: 40000; display: none; overflow: hidden; }
+        #mario-player { position: absolute; width: 40px; height: 40px; background: #ff4500; border: 2px solid #000; bottom: 100px; left: 50px; z-index: 10; }
+        .mario-floor { position: absolute; bottom: 0; width: 5000px; height: 100px; background: #884400; border-top: 5px solid #000; z-index: 5; }
+        .mario-goal { position: absolute; bottom: 100px; left: 2000px; width: 100px; height: 250px; background: #ffff00; border: 3px solid #000; text-align: center; font-weight: bold; z-index: 5; }
+        .mario-spike { position: absolute; bottom: 100px; width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-bottom: 40px solid #333; z-index: 5; }
+        .mario-enemy { position: absolute; bottom: 100px; width: 35px; height: 35px; background: #f00; border: 2px solid #000; z-index: 5; }
 
-        /* 妨害：VS Code モード (偽画面) */
-        #vscode-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1e1e1e;
-            display: none; z-index: 2000; font-family: 'Consolas', monospace; padding: 20px; text-align: left; overflow: hidden;
+        /* --- ジャンプスケア(ゲームオーバー) --- */
+        #mario-gameover { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 50000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        #scare-image { width: 100%; height: 100%; position: absolute; top: 0; left: 0; background-size: cover; background-position: center; z-index: -1; background-image: url('GameOver_horror.png'); transition: opacity 2s; }
+
+        .start-btn { padding: 20px 60px; font-size: 1.5rem; background: #44d7b3; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; }
+        /* ★追加：画面回転ギミックのアニメーション ★ */
+        @keyframes rotate-screen {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(10deg); }
+            75% { transform: rotate(-10deg); }
+            100% { transform: rotate(0deg); }
         }
-        .code-line { color: #d4d4d4; font-size: 12px; margin-bottom: 2px; }
-        .error-text { color: #f44747; font-weight: bold; animation: blink 0.5s infinite; }
-
-        /* ホラー演出 */
-        #jumpscare {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 5000; display: none; align-items: center; justify-content: center;
+        /* このクラスがつくと画面が揺れながら回る */
+        .effect-rotate-animation {
+            animation: rotate-screen 2s ease-in-out; /* 2秒かけて1往復 */
         }
-        #scary-face { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(2); }
+        /* ★追加：画面1回転ギミックのアニメーション ★ */
+        @keyframes full-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* このクラスがつくと1秒で1回転する */
+        .effect-spin-360 {
+            animation: full-spin 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95);
+        }
+        /* ★追加：偽の通知ギミック ★ */
+        #fake-notification {
+            position: fixed;
+            right: -320px; /* 最初は画面の外 */
+            bottom: 20px;
+            width: 300px;
+            background: rgba(40, 40, 40, 0.9);
+            color: white;
+            border-left: 5px solid #00ffcc;
+            padding: 15px;
+            font-size: 0.9rem;
+            z-index: 60000; /* 全ての前へ */
+            transition: right 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #fake-notification.show {
+            right: 20px; /* 画面内に出てくる */
+        }
+        .notif-title { font-weight: bold; color: #00ffcc; margin-bottom: 5px; display: block; }
+     /* 偽物ボタン */
+        .fake-btn {
+            position: absolute;
+            padding: 20px 40px;
+            background: #ff0000;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            z-index: 99;
+            box-shadow: 0 0 20px #f00;
+            cursor: default;
+        }
 
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-        @keyframes shake { 0% { left: 0; } 25% { left: 5px; } 50% { left: -5px; } 75% { left: 5px; } 100% { left: 0; } }
-        .shake { animation: shake 0.1s infinite; }
+/* --- アヒルの見た目と動き --- */
+.duck {
+    position: fixed;
+    font-size: 8rem; /* 巨大化 */
+    z-index: 45000;
+    pointer-events: none;
+    user-select: none;
+    left: -200px; /* 画面左の外からスタート */
+    will-change: transform;
+    /* 絵文字は通常左を向いているので、反転させて右を向かせる */
+    transform: scaleX(-1);
+}
+
+@keyframes duck-walk-right {
+    from { transform: translateX(0) scaleX(-1); }
+    to { transform: translateX(calc(100vw + 400px)) scaleX(-1); }
+}
+/* --- 偽ウィンドウ (2番) --- */
+.fake-window {
+    position: fixed;
+    width: 250px;
+    background: #ececec;
+    border: 2px solid #000;
+    box-shadow: 5px 5px 0px #888;
+    z-index: 55000;
+    padding-bottom: 10px;
+}
+.window-header {
+    background: linear-gradient(to right, #000080, #1084d0);
+    color: white;
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.window-body {
+    padding: 15px;
+    font-size: 0.9rem;
+    color: #000;
+    text-align: center;
+}
+.close-btn {
+    width: 16px;
+    height: 14px;
+    background: #ccc;
+    color: black;
+    border: 1px solid #fff;
+    font-size: 10px;
+    line-height: 12px;
+    text-align: center;
+}
+/* --- フェイク・ハッキング画面 --- */
+#hacker-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    color: #0f0;
+    font-family: 'Courier New', Courier, monospace;
+    padding: 20px;
+    font-size: 1.2rem;
+    z-index: 1000000; /* 全てを覆い隠す */
+    display: none;
+    overflow: hidden;
+    white-space: pre-wrap;
+    text-shadow: 0 0 5px #0f0;
+}
+/* --- 偽クリア & エラー画面 --- */
+#fake-clear-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #fff; color: #000; display: none; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 70000; font-weight: bold;
+}
+#error-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #0000aa; color: #fff; display: none; padding: 40px;
+    font-family: 'Courier New', monospace; z-index: 80000;
+}
+
+/* --- 真のクリア画面 --- */
+#true-clear-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    color: #fff; display: none; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 90000;
+    text-align: center; text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+}
+.clear-btn-group { margin-top: 30px; display: flex; gap: 20px; }
+.ui-btn {
+    padding: 15px 30px; border: none; border-radius: 30px;
+    font-weight: bold; cursor: pointer; transition: 0.2s;
+}
+.retry-btn { background: #fff; color: #ff8c00; }
+.home-btn { background: #333; color: #fff; }
+#quiz-screen {
+    position: fixed; 
+    top: 0; left: 0; 
+    width: 100vw; height: 100vh; /* 画面いっぱいに広げる */
+    background: #222; /* 背景をダークに */
+    border: none;
+    padding: 20px; 
+    z-index: 95000; 
+    display: none;
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; /* 中央寄せ */
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: scale(1.2); /* 最初は少し大きく */
+}
+
+#quiz-screen.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* 問題文の色 */
+.quiz-q { 
+    font-size: 2.5rem; 
+    font-weight: 900; 
+    margin-bottom: 40px; 
+    color: #00ffcc; /* 蛍光色でGeometry Dashっぽく */
+    text-shadow: 0 0 15px #00ffcc;
+    text-align: center; 
+}
+
+/* 選択肢ボタンをかっこよく */
+.quiz-choice {
+    width: 300px; 
+    padding: 20px; 
+    margin: 10px 0;
+    background: #333; 
+    color: #fff;
+    border: 2px solid #555; 
+    border-radius: 15px;
+    font-size: 1.5rem;
+    font-weight: bold; 
+    cursor: pointer; 
+    transition: 0.2s;
+}
+
+.quiz-choice:hover { 
+    background: #00ffcc; 
+    color: #000; 
+    transform: scale(1.05);
+}
+/* --- 偽ライブ配信画面 --- */
+#live-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    display: none; z-index: 85000; pointer-events: none; /* ゲーム操作を邪魔しない */
+}
+
+/* 右側のチャット欄 */
+#live-chat-box {
+    position: absolute; right: 0; top: 0; width: 25%; height: 100%;
+    background: rgba(0, 0, 0, 0.8); border-left: 1px solid #444;
+    color: white; font-family: sans-serif; display: flex; flex-direction: column;
+    pointer-events: auto; /* チャット欄だけは触れるようにする */
+}
+
+.chat-header { padding: 10px; background: #222; font-weight: bold; border-bottom: 1px solid #444; }
+#chat-messages { flex: 1; overflow-y: hidden; padding: 10px; font-size: 0.9rem; display: flex; flex-direction: column; justify-content: flex-end; }
+.chat-msg { margin-bottom: 8px; animation: fade-in 0.2s ease-out; }
+.chat-user { font-weight: bold; color: #aaa; margin-right: 5px; }
+
+/* 左上の「LIVE」バッジ */
+.live-badge {
+    position: absolute; top: 20px; left: 20px; background: #ff0000;
+    color: white; padding: 5px 15px; border-radius: 5px; font-weight: bold;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes fade-in { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+/* 右上・左上のボタン共通設定 */
+.top-icon-btn {
+    position: fixed; top: 15px; width: 45px; height: 45px;
+    background: rgba(255, 255, 255, 0.2); color: white;
+    border: 2px solid white; border-radius: 10px;
+    font-size: 24px; display: flex; align-items: center; justify-content: center;
+    z-index: 100005; touch-action: manipulation;
+}
+.settings-btn { left: 15px; } /* 左上：設定 */
+.pause-btn { right: 15px; }    /* 右上：一時停止 */
+
+/* ポーズ・設定画面のオーバーレイ */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85); display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    z-index: 300000; color: white;
+}
+
+.modal-content {
+    background: #222; padding: 30px; border-radius: 20px;
+    border: 3px solid #44d7b3; text-align: center; min-width: 280px;
+}
+
+.modal-btn {
+    width: 100%; margin: 10px 0; padding: 15px;
+    border: none; border-radius: 10px; font-weight: bold; cursor: pointer;
+}
+.btn-resume { background: #44d7b3; color: black; }
+.btn-home { background: #555; color: white; }
+.btn-settings { background: #333; color: white; border: 1px solid #666; }
+
+/* 音量スライダー */
+input[type="range"] { width: 100%; margin: 20px 0; }
+/* 右上の一時停止ボタン */
+#pause-trigger-btn {
+    position: fixed; top: 15px; right: 15px;
+    width: 50px; height: 50px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white; border: 2px solid white; border-radius: 12px;
+    font-size: 24px; font-weight: bold;
+    display: none; /* 最初は隠しておく */
+    align-items: center; justify-content: center;
+    z-index: 100005; touch-action: manipulation;
+}
+
+/* ポーズ画面（中央のメニュー） */
+#pause-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 200000;
+}
+
+.pause-menu-box {
+    background: #222; padding: 30px; border-radius: 20px;
+    border: 3px solid #44d7b3; width: 260px; text-align: center;
+}
+
+.pause-title { color: #44d7b3; margin-bottom: 20px; font-size: 1.5rem; }
+
+.pause-btn {
+    width: 100%; padding: 15px; margin: 8px 0;
+    border: none; border-radius: 10px; font-weight: bold;
+    font-size: 1.1rem; cursor: pointer; transition: 0.2s;
+}
+
+/* ボタンの色分け */
+.btn-resume { background: #44d7b3; color: #000; } /* 再開：緑 */
+.btn-home { background: #555; color: #fff; }     /* ホーム：灰色 */
+.btn-settings { background: #333; color: #fff; border: 1px solid #666; } /* 設定：黒 */
+
+.pause-btn:active { transform: scale(0.95); }
     </style>
-</head>
-<body>
 
-    <div id="menu-screen" class="screen active">
-        <h1>絶対に押せないボタン</h1>
-        <button class="btn start-btn" onclick="startGame()">スタート</button>
+</head>
+
+<body oncontextmenu="return false;">
+    <div id="menu-settings-btn" class="top-icon-btn settings-btn" onclick="openSettings()">⚙</div>
+
+<div id="game-pause-btn" class="top-icon-btn pause-btn" style="display:none;" onclick="togglePause()">II</div>
+
+<div id="pause-screen" class="modal-overlay">
+    <div class="modal-content">
+        <h2 id="txt-paused">一時停止中</h2>
+        <button class="modal-btn btn-resume" id="txt-resume" onclick="togglePause()">再開</button>
+        <button class="modal-btn btn-settings" id="txt-to-settings" onclick="openSettings()">設定</button>
+        <button class="modal-btn btn-home" id="txt-home" onclick="location.reload()">ホーム</button>
+    </div>
+</div>
+
+<div id="settings-screen" class="modal-overlay">
+    <div class="modal-content">
+        <h2 id="txt-settings-title">設定 / Settings</h2>
+        
+        <p id="txt-lang-label">言語 / Language</p>
+        <select id="lang-select" onchange="changeLanguage()" style="padding:10px; width:100%;">
+            <option value="ja">日本語</option>
+            <option value="en">English</option>
+        </select>
+
+        <p id="txt-vol-label">音量 / Volume</p>
+        <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.5" onchange="updateVolume()">
+        
+        <button class="modal-btn btn-resume" id="txt-close-settings" onclick="closeSettings()">閉じる / Close</button>
+    </div>
+</div>
+<div id="hacker-screen"></div>
+    <div id="menu" style="position:fixed; width:100%; height:100%; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100000;">
+        <h1 style="color:#ff3939; font-size: 4rem; text-shadow: 0 0 20px #ff3939;">絶対に押せないボタン</h1>
+        <button class="start-btn" style="font-size: 2rem;" onclick="init()">スタート</button>
+        <button id="menu-ranking-btn" class="start-btn" style="font-size: 1.4rem; background:#00aaff; margin-top: 15px;" onclick="showRanking()">ランキングを見る</button>
     </div>
 
-    <div id="game-screen" class="screen">
-        <div id="game-msg">ボタンを押せ</div>
+<div id="ranking-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:120000; color:#fff; align-items:center; justify-content:center; flex-direction:column;">
+        <h2 style="font-size:2rem; margin-bottom:10px; color:#ffd700;">🏆 TOP 30 ランキング</h2>
+        
+        <div id="ranking-list" style="width:90%; max-width:500px; background:rgba(20,20,20,0.95); border:2px solid #fff; border-radius: 12px; padding:20px; height:60%; overflow-y:auto; font-size: 1.2rem;"></div>
+        
+        <div style="margin-top: 20px;">
+<button onclick="backFromRanking()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; background: #555; border: none; border-radius: 5px; color: #fff;">戻る</button>
+        </div>
+    </div>
+
+    <div id="game-view">
+        <div id="hint-text">ボタンを押せ</div>
         <button id="target-btn">ボタン</button>
     </div>
 
-    <div id="vscode-overlay">
-        <div class="code-line"><span style="color:#569cd6">import</span> os, sys</div>
-        <div class="code-line"><span style="color:#ce9178">"CRITICAL ERROR: Memory Corruption detected"</span></div>
-        <div class="code-line"><span style="color:#6a9955">// Recovering user data... [FAILED]</span></div>
-        <div class="code-line" style="margin-top:20px">Deleting <span style="color:#dcdcaa">C:/Users/Admin/Photos...</span></div>
-        <div class="code-line">Deleting <span style="color:#dcdcaa">C:/Users/Admin/Documents...</span></div>
-        <div class="error-text" style="font-size: 20px; margin-top: 40px;">ERROR: FAILED TO STOP DELETION</div>
+    <div id="ad-screen">
+        <div class="ad-box"><h2 id="ad-title">広告</h2><p id="ad-body">簡単に100万円を稼ぐ方法！</p></div>
+        <button id="skip-btn" onclick="closeAd()">待機中...</button>
     </div>
 
-    <div id="jumpscare">
-        <div style="width:200px; height:200px; background:radial-gradient(circle, #f00 0%, #000 70%); border-radius:50%; box-shadow: 0 0 100px #f00;"></div>
+    <div id="mario-world">
+        <div id="mario-player"></div>
+        <div class="mario-floor"></div>
+        <div class="mario-goal">GOAL</div>
     </div>
 
-    <script>
-        let clickCount = 0;
-        const target = document.getElementById('target-btn');
-        const vscode = document.getElementById('vscode-overlay');
-        const jumpscare = document.getElementById('jumpscare');
+    <div id="mario-gameover">
+        <div id="scare-image"></div>
+        <h1 style="color:#f00; font-size: 4rem; z-index: 1;"></h1>
+    </div>
 
-        function moveButton() {
-            const x = Math.random() * (window.innerWidth - target.clientWidth - 40) + 20;
-            const y = Math.random() * (window.innerHeight - target.clientHeight - 40) + 20;
-            target.style.left = `${x}px`;
-            target.style.top = `${y}px`;
-        }
+<div id="fake-clear-screen">
+    <h1 style="font-size: 3rem;">ステージクリア！...???</h1>
+    <p>ボーナススコアを集計中...</p>
+</div>
 
-        function startGame() {
-            document.getElementById('menu-screen').classList.remove('active');
-            document.getElementById('game-screen').classList.add('active');
-            moveButton();
-        }
+<div id="error-screen">
+    <h1>:(</h1>
+    <p>問題が発生したため、PCを再起動する必要があります。</p>
+    <p>エラーコード: CRITICAL_PROCESS_DIED</p>
+</div>
+    <div id="fake-notification">
+        <span class="notif-title" id="notif-title">System</span>
+        <span id="notif-body">メッセージ</span>
+    </div>
 
-        // 逃げる処理
-        target.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            // 90%の確率で逃げる、10%でタップ成功
-            if (Math.random() > 0.1) {
-                moveButton();
-                vibrate(30);
-                checkGimmicks();
-            } else {
-                onSuccess();
-            }
+<div id="quiz-screen">
+    <div class="quiz-q" id="quiz-question">問題</div>
+    <button class="quiz-choice" id="choice-1" onclick="checkAnswer(0)">選択肢1</button>
+    <button class="quiz-choice" id="choice-2" onclick="checkAnswer(1)">選択肢2</button>
+</div> <div id="true-clear-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100000; color: #fff; align-items: center; justify-content: center; flex-direction: column; text-align: center;">
+    <div style="position: absolute; top: 20px; left: 20px;">
+        <button onclick="openSettings()" style="background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; opacity: 0.8;">⚙️</button>
+    </div>
+    <h1 style="font-size: 3.5rem; margin-bottom: 10px; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.5);">おめでとう！</h1>
+    <p style="font-size: 1.5rem; margin-bottom: 20px; letter-spacing: 2px;">君の指は光速を超えた！</p>
+    <div style="background: rgba(255,255,255,0.1); padding: 20px 40px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.2); margin-bottom: 30px;">
+        <p style="margin: 0; font-size: 1.2rem; opacity: 0.8;">CLEAR TIME</p>
+        <div style="font-size: 3rem; font-weight: bold; color: #00ffaa;"><span id="clear-time-display">0.00</span>s</div>
+    </div>
+    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+        <button onclick="location.reload()" style="padding: 15px 25px; font-size: 18px; cursor: pointer; background: #555; border: none; border-radius: 5px; color: #fff; font-weight: bold; box-shadow: 0 4px 0 #333;">ホーム</button>
+        <button onclick="retryGame()" style="padding: 15px 30px; font-size: 1.1rem; cursor: pointer; background: #ff4444; border: none; border-radius: 8px; color: #fff; font-weight: bold; box-shadow: 0 4px 0 #cc0000;">リトライ</button>
+        <button onclick="showRanking()" style="padding: 15px 30px; font-size: 1.1rem; cursor: pointer; background: #00aaff; border: none; border-radius: 8px; color: #fff; font-weight: bold; box-shadow: 0 4px 0 #0088cc;">ランキング</button>
+    </div>
+</div>
+
+    <script type="module">
+
+        // --- 1. Firebaseの読み込み ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+// 207行目付近を以下に書き換え
+// onValue を追加し、変数 cameFromClearScreen を定義
+import { getDatabase, ref, set, push, get, query, orderByChild, limitToFirst, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBB2YyOsfhAFTsGEBOVT6KQ1pbt4Vitw-o",
+    authDomain: "pressthebutton-25733.firebaseapp.com",
+    databaseURL: "https://pressthebutton-25733-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "pressthebutton-25733",
+    storageBucket: "pressthebutton-25733.firebasestorage.app",
+    messagingSenderId: "263133277848",
+    appId: "1:263133277848:web:b3fdf20fd57a648b3a6aed",
+    measurementId: "G-BC58LBGNLX"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+let cameFromClearScreen = false;
+
+// タイム計測用のグローバル変数
+let startTime;
+
+        let currentLang = 'ja';
+        let globalVolume = 0.1; // 初期の音量
+
+        const translations = {
+    ja: {
+        title: "絶対に押せないボタン",
+        start: "スタート",
+        hint: "ボタンを押せ",
+        button: "ボタン",
+        paused: "一時停止中",
+        resume: "再開",
+        home: "ホーム",
+        settings: "設定",
+        langLabel: "言語",
+        volLabel: "音量",
+        close: "閉じる",
+        adTitle: "広告",
+        adWait: "待機中...",
+        adSkip: "広告をスキップ",
+        quizCorrect: "正解！",
+        quizWrong: "不正解！",
+        clearMsg: "おめでとう！君の指は光速を超えた！",
+        retry: "リトライ",
+        system: "システム"
+    },
+    en: {
+        title: "Unclickable Button",
+        start: "START",
+        hint: "Push the button",
+        button: "BUTTON",
+        paused: "PAUSED",
+        resume: "RESUME",
+        home: "HOME",
+        settings: "SETTINGS",
+        langLabel: "Language",
+        volLabel: "Volume",
+        close: "CLOSE",
+        adTitle: "AD",
+        adWait: "Waiting...",
+        adSkip: "Skip Ad",
+        quizCorrect: "Correct!",
+        quizWrong: "Wrong!",
+        clearMsg: "Congrats! Your fingers is faster than light speed!",
+        retry: "Retry",
+        system: "System"
+    }
+};
+
+// 1. まず、タイムを保存するための共通の「箱」を準備します（関数の外に書く）
+let finalTimeValue = 0; 
+
+// 2. ランキングに登録する関数
+async function registerRanking() {
+    const name = prompt("ランキングに載せる名前を入力してください:");
+    if (!name) return;
+
+    // もし finalTimeValue が 0 なら、画面の文字から数字を読み取る（念のためのバックアップ）
+    if (finalTimeValue === 0) {
+        const display = document.getElementById('clear-time-display');
+        finalTimeValue = parseFloat(display.innerText) || 0;
+    }
+
+    try {
+        // pushを使って、同じ名前でも新しいデータとして追加する
+        const dbRef = ref(db, 'rankings');
+        const newScoreRef = push(dbRef); 
+
+        await set(newScoreRef, {
+            name: name,
+            score: finalTimeValue, 
+            date: new Date().getTime()
         });
+        
+        alert("ランキングに登録しました！");
+        showRanking();
+    } catch (e) {
+        console.error("エラー詳細:", e);
+        alert("登録に失敗しました。Firebaseのルールを確認してください。");
+    }
+}
 
-        function onSuccess() {
-            clickCount++;
-            moveButton();
-            vibrate([50, 30, 50]);
-            checkGimmicks();
-            if (clickCount >= 80) win();
+function showRanking() {
+    const rankingList = document.getElementById('ranking-list');
+    if (!rankingList) return;
+    
+    rankingList.innerHTML = '<li style="text-align:center;">読み込み中...</li>';
+
+    // 画面の存在チェックをしてから現在の状態を保存
+    const clearScreen = document.getElementById('true-clear-screen');
+    cameFromClearScreen = (clearScreen && clearScreen.style.display === 'flex');
+
+    const topScoresQuery = query(ref(db, 'rankings'), orderByChild('score'), limitToFirst(30));
+
+    onValue(topScoresQuery, (snapshot) => {
+        const scores = [];
+        snapshot.forEach((childSnapshot) => {
+            scores.push(childSnapshot.val());
+        });
+        
+        scores.sort((a, b) => a.score - b.score);
+
+        rankingList.innerHTML = '';
+        scores.forEach((data, index) => {
+            const li = document.createElement('li');
+            li.style.padding = '10px';
+            li.style.borderBottom = '1px solid #444';
+            li.innerHTML = `<span style="color:#ffaa00;">${index+1}位</span> <span style="margin-left:10px;">${data.name}</span><span style="float:right;color:#00ffaa;">${data.score.toFixed(2)}s</span>`;
+            rankingList.appendChild(li);
+        });
+    });
+
+    // 全ての可能性のある画面を隠す
+    if (document.getElementById('menu-view')) document.getElementById('menu-view').style.display = 'none';
+    if (document.getElementById('true-clear-screen')) document.getElementById('true-clear-screen').style.display = 'none';
+    
+    // ランキング画面を表示
+    document.getElementById('ranking-screen').style.display = 'flex';
+}
+
+// ランキングから戻る時のボタン処理
+window.backFromRanking = function() {
+    document.getElementById('ranking-screen').style.display = 'none';
+    if (cameFromClearScreen) {
+        // クリア画面から来たならクリア画面へ
+        document.getElementById('true-clear-screen').style.display = 'flex';
+    } else {
+        // それ以外ならメニューへ
+        document.getElementById('menu-view').style.display = 'flex';
+    }
+};
+
+// 4. 【重要】HTMLのボタンから関数を呼べるように「許可」を出す
+window.registerRanking = registerRanking;
+window.showRanking = showRanking;
+
+let clickCount = 0;
+        let totalAttempts = 0;
+        let isPaused = false;
+        let isAdReady = false;
+        let isGameOver = false;
+        let activeDucks = 0;
+        let duckMusicInterval = null;
+
+        const btn = document.getElementById('target-btn');
+        const view = document.getElementById('game-view');
+
+        // AudioContextの作成
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // 🛠 強化版 SFX 関数
+        function sfx(freq, type = 'sine', duration = 0.1, volume = 0.1) {
+            // Contextが停止していたら再開させる
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+            const now = audioCtx.currentTime;
+            const attack = 0.01; // 立ち上がり
+            const release = duration * 0.2; // 終わりの20%の長さでフェードアウト
+            const sustainTime = duration - attack - release;
+
+            // --- 音量エンベロープの設定 ---
+            gain.gain.setValueAtTime(0, now);
+            // 0.01秒で指定の音量まで上げる
+            gain.gain.linearRampToValueAtTime(volume * globalVolume, now + attack);
+            // 音を終わりの直前まで維持する
+            gain.gain.setValueAtTime(volume * globalVolume, now + attack + sustainTime);
+            // 最後に向けて滑らかに消す
+            gain.gain.linearRampToValueAtTime(0, now + duration);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(now);
+            osc.stop(now + duration);
         }
 
-        function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
+        // --- クイズのデータ ---
+const quizzes = {
+    ja: [
+        { q: "信号機の「進め」は何色？", c: ["青色", "黄色"], a: 0 },
+        { q: "日本はどっち？", c: ["大陸", "島国"], a: 1 },
+        { q: "1 + 1 は？", c: ["2", "3"], a: 0 },
+        { q: "リンゴは何色？", c: ["赤色", "青色"], a: 0 },
+        { q: "このゲームは…", c: ["神ゲー", "無理ゲー"], a: 999 } // どっちも正解にしたければ調整可
+    ],
+    en: [
+        { q: "What color is the 'go' light?", c: ["Green", "Yellow"], a: 0 },
+        { q: "Which is Japan?", c: ["Continent", "Island Nation"], a: 1 },
+        { q: "What is 1 + 1?", c: ["2", "3"], a: 0 },
+        { q: "What color is an apple?", c: ["Red", "Blue"], a: 0 },
+        { q: "This game is...", c: ["Good Game", "Impossible Game"], a: 999 }
+    ]
+};
 
-        function checkGimmicks() {
-            // 20回〜: Geometry Dash風の流れるトゲ
-            if (clickCount >= 10 && clickCount < 30) {
-                if (Math.random() > 0.7) spawnGDObstacle();
+let currentQuizAns = 0;
+
+function startQuiz() {
+    isPaused = true;
+    const quiz = quizzes[currentLang][Math.floor(Math.random() * quizzes[currentLang].length)];
+    document.getElementById('quiz-question').innerText = quiz.q;
+    document.getElementById('choice-1').innerText = quiz.c[0];
+    document.getElementById('choice-2').innerText = quiz.c[1];
+    currentQuizAns = quiz.a;
+
+    const screen = document.getElementById('quiz-screen');
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('show'), 10);
+    sfx(600, 'sine', 0.2, 0.1);
+}
+
+function checkAnswer(idx) {
+    const screen = document.getElementById('quiz-screen');
+   const currentQuiz = quizzes[currentLang].find(q => q.q === document.getElementById('quiz-question').innerText);
+
+    if (currentQuiz.a === 999 || idx === currentQuizAns) {
+        // 正解
+        screen.style.backgroundColor = "#004400"; // 成功っぽい色に
+        sfx(800, 'sine', 0.1, 0.1);
+        
+        screen.classList.remove('show');
+        setTimeout(() => {
+            screen.style.display = 'none';
+            screen.style.backgroundColor = "#222"; 
+            isPaused = false;
+            teleport();
+        }, 500);
+    } else {
+        // 不正解：画面を揺らす
+        screen.classList.add('effect-glitch');
+        sfx(100, 'sawtooth', 0.3, 0.2);
+        setTimeout(() => {
+            screen.classList.remove('effect-glitch');
+        }, 300);
+    }
+} // ← ここに閉じカッコが必要でした
+
+        // アヒルの音
+        function playDuckMusic() {
+            if (duckMusicInterval) return;
+            duckMusicInterval = setInterval(() => {
+                sfx(400, 'triangle', 0.15, 0.05);
+                setTimeout(() => sfx(500, 'triangle', 0.15, 0.05), 100);
+            }, 300);
+        }
+
+        function stopDuckMusic() {
+            clearInterval(duckMusicInterval);
+            duckMusicInterval = null;
+        }
+
+function init() {
+    // タイム計測開始
+    startTime = Date.now(); 
+
+    // オーディオ再開
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+
+    // メニューを隠してゲーム画面へ
+    document.getElementById('menu').style.display = 'none';
+    
+    // 設定ボタンを隠して一時停止ボタンを出す
+    const menuSettings = document.getElementById('menu-settings-btn');
+    if (menuSettings) menuSettings.style.display = 'none';
+    document.getElementById('pause-trigger-btn').style.display = 'flex'; 
+    
+    teleport();
+}
+
+        // --- 以下、ゲームロジックはそのまま ---
+        function teleport() {
+            const pad = 120;
+            const x = Math.random() * (window.innerWidth - btn.clientWidth - pad * 2) + pad;
+            const y = Math.random() * (window.innerHeight - btn.clientHeight - pad * 2) + pad;
+            btn.style.left = x + 'px';
+            btn.style.top = y + 'px';
+        }
+
+        const escape = (e) => {
+            if (isPaused) return;
+            e.preventDefault();
+            totalAttempts++;
+            if (Math.random() > 0.25) {
+                sfx(100, 'sawtooth', 0.1);
+                teleport();
+                triggerChaos();
+            } else { success(); }
+        };
+
+        btn.addEventListener('mouseenter', escape);
+        btn.addEventListener('touchstart', escape);
+        btn.addEventListener('click', success);
+
+// --- 1. success関数を書き換え ---
+function success() {
+    if (isPaused) return;
+    clickCount++;
+    sfx(100, 'sawtooth', 0.1);
+    teleport();
+    triggerChaos();
+
+    // 40回で本当のクリア
+    if (clickCount >= 40) {
+        showTrueClear();
+    } 
+    // 👇 35回目で新しいギミックを発動！
+    else if (clickCount === 35) {
+        showFinalGimmick(); 
+    }
+    // 20回で偽のクリア
+    else if (clickCount === 20) {
+        showFakeClear();
+    }
+}
+
+// --- 2. 偽クリア演出 ---
+function showFakeClear() {
+    isPaused = true;
+    const fakeClear = document.getElementById('fake-clear-screen');
+    const errorScr = document.getElementById('error-screen');
+    
+    fakeClear.style.display = 'flex';
+    
+    setTimeout(() => {
+        fakeClear.style.display = 'none';
+        errorScr.style.display = 'block';
+        // 「ピーーー」という高音
+        sfx(1000, 'square', 2.0, 0.3); 
+        
+        setTimeout(() => {
+            errorScr.style.display = 'none';
+            isPaused = false;
+            teleport();
+        }, 3000); // 3秒エラーを見せて戻る
+    }, 2000); // 2秒偽クリアを見せる
+}
+
+function showFinalGimmick() {
+    isPaused = true;
+    
+    // 画面全体を真っ白にして「ページが応答しません」という偽のブラウザエラーを出す
+    const crashOverlay = document.createElement('div');
+    crashOverlay.id = "crash-overlay";
+    crashOverlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #fff; z-index: 10000; display: flex; 
+        flex-direction: column; align-items: center; justify-content: center;
+        font-family: sans-serif; color: #555;
+    `;
+
+    const msg = currentLang === 'ja' ? 'ページが応答しません' : 'Page Unresponsive';
+    const subMsg = currentLang === 'ja' ? '待機しますか？それとも終了しますか？' : 'Wait or Exit page?';
+    const btnText = currentLang === 'ja' ? '待機' : 'Wait';
+
+    crashOverlay.innerHTML = `
+        <div style="font-size: 50px; margin-bottom: 20px;">☹️</div>
+        <h2 style="margin: 10px;">${msg}</h2>
+        <p>${subMsg}</p>
+        <button id="fake-wait-btn" style="padding: 10px 30px; margin-top: 20px; cursor: pointer;">${btnText}</button>
+    `;
+    
+    document.body.appendChild(crashOverlay);
+
+    // 「待機」ボタンを押すと、ボタンが巨大化して現れる
+    document.getElementById('fake-wait-btn').onclick = () => {
+        sfx(200, 'sine', 0.2, 0.1);
+        crashOverlay.remove();
+        isPaused = false;
+        
+        // 最後の追い込み：ボタンをちょっと小さくして難易度調整
+        btn.style.transform = "scale(0.3)";
+        teleport();
+    };
+}
+
+        function startHacking() {
+    isPaused = true; // ゲームを一時停止
+    const hackerScreen = document.getElementById('hacker-screen');
+    hackerScreen.style.display = 'block';
+    hackerScreen.innerText = "";
+
+    const messages = [
+        "> INITIALIZING EXPLOIT...",
+        "> ACCESSING IP: 192.168.1.1...",
+        "> FIREWALL BYPASSED.",
+        "> DOWNLOADING SYSTEM DATA...",
+        "> ACCESS GRANTED.",
+        "> DELETING ALL FILES...",
+        "> HAHAHAHAHAHA!!!!!!!!!!"
+    ];
+
+    let msgIndex = 0;
+    let charIndex = 0;
+
+    function typeEffect() {
+        if (msgIndex < messages.length) {
+            if (charIndex < messages[msgIndex].length) {
+                hackerScreen.append(messages[msgIndex][charIndex]);
+                charIndex++;
+                sfx(800, 'square', 0.05, 0.02); // カチカチ音
+                setTimeout(typeEffect, 30);
+            } else {
+                hackerScreen.append("\n");
+                msgIndex++;
+                charIndex = 0;
+                setTimeout(typeEffect, 500);
             }
+        } else {
+            // 終了後、3秒で元の画面に戻る
+            setTimeout(() => {
+                hackerScreen.style.display = 'none';
+                isPaused = false;
+                teleport();
+            }, 3000);
+        }
+    }
+    typeEffect();
+}
 
-            // 40回〜: 突然のVS Code画面（5秒間）
-            if (clickCount === 40) {
-                vscode.style.display = 'block';
-                vibrate([500, 100, 500]);
-                setTimeout(() => { vscode.style.display = 'none'; }, 4000);
-            }
+        function showFakeNotif() {
+            const notif = document.getElementById('fake-notification');
+            const title = document.getElementById('notif-title');
+            const body = document.getElementById('notif-body');
+            const msgs = [
+                {t: "システムアップデート", b: "更新プログラムの準備ができました。今すぐ再起動しますか？"},
+                {t: "セキュリティ警告", b: "未知のデバイスがあなたのカメラにアクセスしています。"},
+                {t: "Chrome Defender", b: "脅威が見つかりました：'Anpanman.exe'"},
+                {t: "Line", b: "だんご: まだクリアしてないの？"},
+                {t: "不明なエラー", b: "メモリが不足しています。一部のデータが破損しました。"}
+            ];
+            const target = msgs[Math.floor(Math.random() * msgs.length)];
+            title.innerText = target.t;
+            body.innerText = target.b;
+            notif.classList.add('show');
+            sfx(600, 'sine', 0.2, 0.05);
+            setTimeout(() => notif.classList.remove('show'), 6000);
+        }
 
-            // 60回〜: ホラー演出（急な画像と画面の揺れ）
-            if (clickCount >= 60) {
-                document.body.classList.add('shake');
-                if (Math.random() > 0.92) {
-                    jumpscare.style.display = 'flex';
-                    setTimeout(() => { jumpscare.style.display = 'none'; }, 150);
-                }
+        function spawnFakeButtons() {
+            const t = translations[currentLang];
+            for (let i = 0; i < 4; i++) {
+                const fake = document.createElement('button');
+                fake.className = 'fake-btn';
+                fake.innerText = t.button;
+                const x = Math.random() * (window.innerWidth - 150);
+                const y = Math.random() * (window.innerHeight - 50);
+                fake.style.left = x + 'px';
+                fake.style.top = y + 'px';
+                fake.onclick = () => {
+                    sfx(50, 'sawtooth', 0.5, 0.2);
+                    fake.style.background = '#555';
+                    fake.innerText = currentLang === 'ja' ? '偽物！' : 'Fake!';
+                    if (Math.random() > 0.80) startMario();
+                };
+                view.appendChild(fake);
+                setTimeout(() => fake.remove(), 5000);
             }
         }
 
-        function spawnGDObstacle() {
-            const obs = document.createElement('div');
-            obs.className = 'gd-obstacle';
-            obs.style.width = '40px';
-            obs.style.height = '40px';
-            obs.style.left = window.innerWidth + 'px';
-            obs.style.top = Math.random() * window.innerHeight + 'px';
-            document.getElementById('game-screen').appendChild(obs);
+        function spawnFakeWindow() {
+    const win = document.createElement('div');
+    win.className = 'fake-window';
 
-            // 右から左へ高速移動（GDのスクロール風）
-            let pos = window.innerWidth;
-            const anim = setInterval(() => {
-                pos -= 10;
-                obs.style.left = pos + 'px';
-                if (pos < -50) {
-                    clearInterval(anim);
-                    obs.remove();
-                }
-            }, 16);
+    // ランダムな位置
+    win.style.left = Math.random() * (window.innerWidth - 250) + 'px';
+    win.style.top = Math.random() * (window.innerHeight - 150) + 'px';
 
-            // 障害物に触れるとペナルティ
-            obs.addEventListener('touchstart', () => {
-                clickCount = Math.max(0, clickCount - 10);
-                vibrate(500);
-                obs.style.background = 'red';
+    const titles = ["Error 404", "Warning!", "System Update", "Anpanman.exe"];
+    const bodies = ["システムが不安定です", "ウイルスを検知しました", "再起動が必要です", "データが破損しています"];
+    const idx = Math.floor(Math.random() * titles.length);
+
+    win.innerHTML = `
+        <div class="window-header">
+            <span>${titles[idx]}</span>
+            <div class="close-btn">×</div>
+        </div>
+        <div class="window-body">${bodies[idx]}</div>
+    `;
+
+    // 閉じるボタンを押そうとすると増殖するトラップ
+    win.onclick = () => {
+        sfx(200, 'square', 0.1, 0.1);
+        spawnFakeWindow(); // 1個消そうとすると1個増える
+        win.remove();
+    };
+
+    document.body.appendChild(win);
+    // 8秒後に自動で消える
+    setTimeout(() => win.remove(), 8000);
+}
+
+        function spawnDuckArmy() {
+            const count = 30;
+            activeDucks = count;
+            playDuckMusic();
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => {
+                    const marioWorld = document.getElementById('mario-world');
+                    if (marioWorld && marioWorld.style.display === 'block') {
+                        activeDucks--;
+                        if (activeDucks <= 0) stopDuckMusic();
+                        return;
+                    }
+                    const duck = document.createElement('div');
+                    duck.className = 'duck';
+                    duck.innerText = '🦆';
+                    duck.style.top = Math.random() * 80 + 'vh';
+                    const duration = 1.5 + Math.random() * 1.5;
+                    duck.style.animation = `duck-walk-right ${duration}s linear forwards`;
+                    document.body.appendChild(duck);
+                    setTimeout(() => {
+                        duck.remove();
+                        activeDucks--;
+                        if (activeDucks <= 0) stopDuckMusic();
+                    }, duration * 1000);
+                }, i * 60);
+            }
+        }
+
+// 修正版：1つにまとめた triggerChaos 関数
+function triggerChaos() {
+    const r = Math.random();
+
+    // 1. 基本のエフェクト
+    if (r > 0.8) {
+        view.classList.add('effect-glitch');
+        setTimeout(() => view.classList.remove('effect-glitch'), 200);
+    }
+    if (r > 0.85) view.classList.toggle('effect-invert');
+    if (r > 0.93) view.classList.toggle('effect-rotate');
+
+    // 2. 画面揺れ
+    if (clickCount > 5 && r > 0.90) {
+        if (!view.classList.contains('effect-rotate-animation')) {
+            view.classList.add('effect-rotate-animation');
+            setTimeout(() => view.classList.remove('effect-rotate-animation'), 2000);
+        }
+    }
+
+    // 3. 偽ウィンドウ
+    if (clickCount > 5 && r > 0.92) {
+        spawnFakeWindow();
+    }
+
+    // 4. 1回転
+    if (clickCount > 7 && r > 0.90) {
+        if (!view.classList.contains('effect-spin-360')) {
+            view.classList.add('effect-spin-360');
+            setTimeout(() => view.classList.remove('effect-spin-360'), 1200);
+            sfx(800, 'sine', 1.2, 0.05);
+        }
+    }
+
+    // 5. ハッキング
+    if (clickCount > 8 && r > 0.98) {
+        startHacking();
+    }
+
+    // 6. クイズ（ここに統合しました）
+    if (clickCount > 3 && r > 0.94 && !isPaused) {
+        startQuiz();
+    }
+    // ライブ配信ギミック
+    if (clickCount > 5 && r > 0.92) startLiveGimmick();
+
+    // 7. その他のギミック
+    if (clickCount > 2&& r > 0.90) showFakeNotif();
+    if (clickCount > 5 && r > 0.90) spawnFakeButtons();
+    if (clickCount > 5 && r > 0.92) spawnDuckArmy();
+    if (clickCount > 3 && r > 0.95) showAd();
+    if (clickCount > 7 && r > 0.97) startMario();
+}
+
+function finalTrap() {
+    isPaused = true;
+    // 画面全体を黒くするか、偽のデスクトップ画像を表示
+    const bg = document.createElement('div');
+    bg.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:url('fake_desktop.jpg'); z-index:9999; display:flex; align-items:center; justify-content:center;";
+    
+    // 偽の警告ダイアログ
+    bg.innerHTML = `
+        <div style="background:#eee; padding:20px; border:2px solid #000; color:#000; text-align:center;">
+            <p>致命的なエラーが発生しました。<br>システムを再起動する必要があります。</p>
+            <button id="real-final-btn" style="padding:10px 20px;">再起動</button>
+        </div>
+    `;
+    document.body.appendChild(bg);
+
+    // この「再起動」ボタンが、実は最後のターゲット！
+    document.getElementById('real-final-btn').onclick = () => {
+        bg.remove();
+        isPaused = false;
+        showTrueClear(); // ついに真のクリアへ
+    };
+}
+
+// 広告のバリエーション
+const adContents = [
+    { title: "【新作】iPhone 28!?", body: "ついに発売！...というのは嘘です。今すぐボタンを押して確認！" },
+    { title: "ウイルスを検知しました", body: "お使いのPCから大量の『qury.exe』が見つかりました。今すぐ駆除してください。" },
+    { title: "GitHub Pages 広告", body: "無料で静的サイトをホスト！あなたのクイズアプリもここで公開しよう。" },
+    { title: "Razer Synapse アップデート", body: "マウスの感度が400000DPIに設定されました。制御不能！" },
+    { title: "ビジネス成功者からのメッセージ", body: "「まだ最短で稼げるビジネスをやってないの？」" },
+    { title: "【衝撃】簡単に100万円を稼ぐ方法！", body: "いつものつまらない人生から抜け出してみませんか？" }
+];
+
+function showAd() {
+    isPaused = true; 
+    isAdReady = false;
+    
+    // --- 追加：ランダムに広告を選ぶ ---
+    const ad = adContents[Math.floor(Math.random() * adContents.length)];
+    document.getElementById('ad-title').innerText = ad.title;
+    document.getElementById('ad-body').innerText = ad.body;
+    // -------------------------------
+
+    const adScreen = document.getElementById('ad-screen');
+    adScreen.style.display = 'flex';
+    
+    let time = 3;
+    const sBtn = document.getElementById('skip-btn');
+    sBtn.innerText = `スキップまで ${time}s`;
+    
+    const timer = setInterval(() => {
+        time--;
+        if (time > 0) { 
+            sBtn.innerText = `スキップまで ${time}s`; 
+        } else {
+            clearInterval(timer);
+            sBtn.innerText = "広告をスキップ";
+            isAdReady = true;
+        }
+    }, 1000);
+}
+
+        function closeAd() {
+            if (isAdReady) {
+                document.getElementById('ad-screen').style.display = 'none';
+                isPaused = false;
+                teleport();
+            }
+        }
+
+        let mX = 0, mY = 100, mJ = 0, mObs = [], mLoopId;
+        const mp = document.getElementById('mario-player');
+        const mw = document.getElementById('mario-world');
+
+        function startMario() {
+            // ★ここを追加：画面上のすべての偽ウィンドウを削除
+    document.querySelectorAll('.fake-window').forEach(win => win.remove());
+    // ★追加：クイズ画面を強制的に閉じる
+    document.getElementById('quiz-screen').style.display = 'none';
+    document.getElementById('quiz-screen').classList.remove('show');
+            document.querySelectorAll('.duck').forEach(d => d.remove());
+            activeDucks = 0;
+            stopDuckMusic();
+            isPaused = true;
+            isGameOver = false;
+            mX = 0; mY = 100; mJ = 0;
+            mw.style.display = 'block';
+            spawnM();
+            mLoopId = requestAnimationFrame(mLoop);
+        }
+
+        function spawnM() {
+            mObs.forEach(o => o.el.remove());
+            mObs = [];
+            const d = [{t:'s',x:800},{t:'s',x:1100},{t:'e',x:1400},{t:'s',x:1700}];
+            d.forEach(i => {
+                const el = document.createElement('div');
+                el.className = (i.t === 's') ? 'mario-spike' : 'mario-enemy';
+                el.style.left = i.x + 'px';
+                mw.appendChild(el);
+                mObs.push({el:el, x:i.x, y:100, w:30, h:35, t:i.t});
             });
         }
 
-        function win() {
-            alert("おめでとう、君はボタンを押せた！");
-            location.reload();
+        function mLoop() {
+    // !isPaused ではなく、isGameOver などで判定すべき
+    if (isGameOver || document.getElementById('mario-world').style.display === 'none') return;
+    mX += 5; mJ -= 0.8; mY += mJ;
+            if (mY <= 100) { mY = 100; mJ = 0; }
+            mp.style.bottom = mY + 'px';
+            mp.style.left = (50 + mX) + "px";
+            mw.scrollLeft = mX;
+            const pR = {x: 50 + mX, y: mY, w: 35, h: 35};
+            mObs.forEach(o => {
+                if (pR.x < o.x + o.w && pR.x + pR.w > o.x && pR.y < o.y + o.h && pR.y + pR.h > o.y) {
+                    mGameOver();
+                }
+            });
+            if (mX > 1950) {
+                mw.style.display = 'none';
+                isPaused = false;
+                teleport();
+                return;
+            }
+            mLoopId = requestAnimationFrame(mLoop);
         }
+
+        mw.onclick = () => { if (isPaused && mY <= 100) { mJ = 16; sfx(400, 'sine', 0.2); } };
+
+function mGameOver() {
+            if (isGameOver) return; 
+            isGameOver = true; 
+            cancelAnimationFrame(mLoopId); 
+            mw.style.display = 'none'; 
+
+            const goScreen = document.getElementById('mario-gameover');
+            const scareImg = document.getElementById('scare-image');
+            
+            // 最初は真っ暗にする
+            goScreen.style.display = 'flex'; 
+            scareImg.style.opacity = '0'; 
+
+            // 【重要：4番 音量トラップ】 最初は小さく鳴らす（静寂）
+            sfx(100, 'sine', 1.0, 0.01); 
+
+            setTimeout(() => {
+                // 1秒後に爆音ジャンプスケア
+                const deathSound = new Audio('Horror_Accent08-1.mp3'); // ここに好きな音源のパスを入れる
+                deathSound.play();
+                sfx(40, 'sawtooth', 2.0, 0.8); 
+                sfx(45, 'square', 2.0, 0.6); 
+                sfx(60, 'square', 5.0, 0.5);
+                
+                // ここで画像を表示し、画面をバグらせる
+                scareImg.style.opacity = '1';
+                goScreen.classList.add('effect-glitch'); 
+                
+                if (navigator.vibrate) navigator.vibrate([100, 50, 500]);
+            }, 1000);
+
+            // 5秒後に元のゲームに戻る
+            setTimeout(() => {
+                goScreen.style.display = 'none';
+                goScreen.classList.remove('effect-glitch');
+                scareImg.style.opacity = '0';
+                isPaused = false;
+                isGameOver = false; 
+                teleport();
+            }, 5000); 
+        }
+        const chatUsers = ["sairyuutsp", "GD_Lover", "NoobPlayer", "Bot_01", "Anonymous", "Dango53", "Saul_goodman"];
+const chatTexts = [
+    "うめえええええ", "今の避けるの！？", "草", "プロすぎて参考にならないw", 
+    "これ人間か？", "マリオ始まっててワロタ", "ボタン速すぎ", "絶対押せないやつだ",
+    "頑張れー！", "チャット見て！", "ハッキングされてるぞw", "GG!", "すごすぎて草", "なにこのカオスなゲームは",
+    "何が起きてんだ？", "面白ろｗ"
+];
+
+function startLiveGimmick() {
+    const overlay = document.getElementById('live-overlay');
+    const msgContainer = document.getElementById('chat-messages');
+    overlay.style.display = 'block';
+    
+    // 画面を少し縮小して「配信ソフトのプレビュー画面」っぽくする（任意）
+    view.style.transform = "scale(0.75) translateX(-15%)";
+
+    const chatInterval = setInterval(() => {
+        if (overlay.style.display === 'none') {
+            clearInterval(chatInterval);
+            return;
+        }
+
+        const user = chatUsers[Math.floor(Math.random() * chatUsers.length)];
+        const text = chatTexts[Math.floor(Math.random() * chatTexts.length)];
+        
+        const msgEl = document.createElement('div');
+        msgEl.className = 'chat-msg';
+        msgEl.innerHTML = `<span class="chat-user">${user}:</span><span class="chat-text">${text}</span>`;
+        msgContainer.appendChild(msgEl);
+
+        if (msgContainer.children.length > 15) msgContainer.removeChild(msgContainer.firstChild);
+    }, 800);
+
+    // 20秒後に配信終了（元に戻る）
+    setTimeout(() => {
+        overlay.style.display = 'none';
+        view.style.transform = "scale(1) translateX(0)";
+    }, 20000);
+}
+
+// 既存のsfx関数を修正して globalVolume を使うようにしてください
+// 例: gain.gain.linearRampToValueAtTime(volume * globalVolume, now + attack);
+// ポーズの切り替え関数
+function togglePause() {
+    if (isGameOver) return; // ゲームオーバー時は開かない
+    
+    const overlay = document.getElementById('pause-overlay');
+    isPaused = !isPaused; // ゲームのフラグを切り替え
+    
+    if (isPaused) {
+        overlay.style.display = 'flex';
+        sfx(400, 'sine', 0.1, 0.1);
+    } else {
+        overlay.style.display = 'none';
+        sfx(600, 'sine', 0.1, 0.1);
+        teleport(); // 再開時にボタンを移動させて難易度アップ！
+    }
+}
+
+// 設定画面を開く
+function openSettings() {
+    const settings = document.getElementById('settings-screen');
+    if (settings) {
+        settings.style.display = 'flex';
+        sfx(800, 'sine', 0.1, 0.1);
+    }
+}
+
+function closeSettings() {
+    const settings = document.getElementById('settings-screen');
+    if (settings) {
+        settings.style.display = 'none';
+        sfx(600, 'sine', 0.1, 0.1);
+    }
+}
+
+function changeLanguage() {
+    currentLang = document.getElementById('lang-select').value;
+    const t = translations[currentLang];
+
+    // メインメニュー
+    const titleEl = document.querySelector('#menu h1');
+    if(titleEl) titleEl.innerText = t.title;
+    const startBtn = document.querySelector('.start-btn');
+    if(startBtn) startBtn.innerText = t.start;
+    
+    // ゲーム画面
+    const hintEl = document.getElementById('hint-text');
+    if(hintEl) hintEl.innerText = t.hint;
+    // ボタン
+    const mainBtn = document.getElementById('target-btn');
+    if(mainBtn) mainBtn.innerText = t.button;
+    
+    // ポーズ画面（複数ボタンすべて更新）
+    const pauseTitles = document.querySelectorAll('.pause-title');
+    pauseTitles.forEach(el => el.innerText = t.paused);
+    const btnResumes = document.querySelectorAll('.btn-resume');
+    btnResumes.forEach(el => el.innerText = t.resume);
+    const btnHomes = document.querySelectorAll('.btn-home');
+    btnHomes.forEach(el => el.innerText = t.home);
+    const btnSettingsAll = document.querySelectorAll('.btn-settings');
+    btnSettingsAll.forEach(el => el.innerText = t.settings);
+
+    // 設定画面
+    const setTit = document.getElementById('txt-settings-title');
+    if(setTit) setTit.innerText = t.settings;
+    const langLab = document.getElementById('txt-lang-label');
+    if(langLab) langLab.innerText = t.langLabel;
+    const volLab = document.getElementById('txt-vol-label');
+    if(volLab) volLab.innerText = t.volLabel;
+    const closeSet = document.getElementById('txt-close-settings');
+    if(closeSet) closeSet.innerText = t.close;
+}
+
+// --- 修正後の保存処理イメージ ---
+async function saveScore(name, clearTime) {
+    try {
+        // 1. 'rankings' という場所への参照を作る
+        const scoresRef = ref(db, 'rankings');
+        
+        // 2. push() を使って、新しい保存場所（ユニークなID）を自動生成する
+        const newScoreRef = push(scoresRef);
+        
+        // 3. その新しい場所にデータを書き込む
+        await set(newScoreRef, {
+            name: name,
+            score: parseFloat(clearTime),
+            timestamp: serverTimestamp() // いつ記録されたか（firebaseの機能）
+        });
+
+        alert("ランキングに登録されました！");
+    } catch (error) {
+        console.error("保存に失敗しました:", error);
+    }
+}
+
+function updateVolume() {
+    globalVolume = parseFloat(document.getElementById('vol-slider').value);
+    sfx(440, 'sine', 0.1, globalVolume); // 音量確認
+}
+
+function showTrueClear() {
+    isPaused = true;
+    
+    // 【修正】上で準備した finalTimeValue を使って計算する
+    finalTimeValue = (Date.now() - startTime) / 1000;
+    
+    // タイムを画面に表示
+    document.getElementById('clear-time-display').innerText = finalTimeValue.toFixed(2);
+    
+    // クリア画面を表示
+    const clearScreen = document.getElementById('true-clear-screen');
+    clearScreen.style.display = 'flex';
+    
+    sfx(600, 'sine', 0.2, 0.1);
+
+    // 0.5秒後に名前入力アラートを出す
+    setTimeout(() => {
+        registerRanking();
+    }, 500);
+}
+
+// --- ランキング画面を閉じる ---
+function closeRanking() {
+    document.getElementById('ranking-screen').style.display = 'none';
+}
+
+// --- リトライ処理 ---
+function retryGame() {
+    document.getElementById('true-clear-screen').style.display = 'none';
+    clickCount = 0; totalAttempts = 0; isPaused = false; isGameOver = false;
+    init(); 
+}
+
+// スタートボタンの紐付け
+const startBtnEl = document.querySelector('.start-btn');
+if(startBtnEl) startBtnEl.onclick = init;
+
+// ★重要：関数をグローバルスコープに露出させる
+window.init = init;
+window.openSettings = openSettings;
+window.closeSettings = closeSettings;
+window.togglePause = togglePause;
+window.changeLanguage = changeLanguage;
+window.updateVolume = updateVolume;
+window.closeAd = closeAd;
+window.checkAnswer = checkAnswer;
+window.startQuiz = startQuiz;
+window.registerRanking = registerRanking;
+window.retryGame = retryGame;
+window.showRanking = showRanking;
+window.closeRanking = closeRanking;
     </script>
+    <div id="live-overlay">
+    <div class="live-badge">● LIVE 1,284 views</div>
+    <div id="live-chat-box">
+        <div class="chat-header">上位のチャット</div>
+        <div id="chat-messages"></div>
+    </div>
+</div>
+<div id="pause-trigger-btn" onclick="togglePause()">II</div>
+
+<div id="pause-overlay">
+    <div class="pause-menu-box">
+        <div class="pause-title">PAUSE</div>
+        <button class="pause-btn btn-resume" onclick="togglePause()">再開</button>
+        <button class="pause-btn btn-home" onclick="location.reload()">ホーム</button>
+        <button class="pause-btn btn-settings" onclick="openSettings()">設定</button>
+    </div>
+</div>
 </body>
 </html>
