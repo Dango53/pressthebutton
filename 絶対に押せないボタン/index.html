@@ -5,8 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>絶対に押せないボタン</title>
     <style>
-        * { touch-action: none; user-select: none; box-sizing: border-box; cursor: default; }
+        * { user-select: none; box-sizing: border-box; cursor: default; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
+
+/* ゲーム画面は誤作動防止のためスクロール禁止 */
+#game-view {
+    touch-action: none;
+}
+
+/* ランキングコンテナは縦スクロールを許可 */
+#ranking-container {
+    max-height: 400px; /* 好きな高さに調整してください */
+    overflow-y: auto !important;
+    touch-action: pan-y !important; /* 縦方向の指の動きを許可 */
+    -webkit-overflow-scrolling: touch; /* iPhoneでスルスル動くようにする */
+        }
 
         /* --- メインゲーム画面 --- */
         #game-view { width: 100%; height: 100%; position: absolute; transition: transform 0.3s, filter 0.2s; background: linear-gradient(45deg, #1a1a2e, #16213e, #0f3460); }
